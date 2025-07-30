@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from flask import Flask, flash, render_template, url_for, request, redirect
+from flask import Flask, flash, render_template, url_for, request, redirect, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -14,6 +14,7 @@ port = os.environ.get("DB_PORT")
 database = os.environ.get("DB_NAME")
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY")
 app.config['SQLALCHEMY_DATABASE_URI'] = f"postgresql://{user}:{password}@{host}:{port}/{database}?sslmode=require"
 db = SQLAlchemy(app)
 
@@ -24,9 +25,12 @@ class User(db.Model):
     password = db.Column(db.String(512), nullable = False)
 
 
-@app.route("/home")
-def home():
-    return render_template('home.html')
+@app.route("/dashboard")
+def dashboard():
+    if "user_id" in session:
+        return render_template('dashboard.html')
+    else:
+        return redirect("/login")
 
 @app.route("/")
 @app.route("/login", methods=["POST", "GET"])
@@ -39,14 +43,21 @@ def login():
         if user:
             
             if check_password_hash(user.password, password):
-                return redirect('/home')
+                session["user_id"] = user.id
+                return redirect('/dashboard')
 
             else:
-                flash("Incorrect Password")
+                return("Incorrect Password")
         else:
-            flash("User Not Found")
+            return("User Not Found")
 
     return render_template('login.html')
+
+@app.route("/log_out")
+def log_out():
+    session.clear()
+    print("You have been logged out")
+    return redirect("/login")
 
 
 @app.route("/register", methods=["POST", "GET"])
